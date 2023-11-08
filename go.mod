@@ -1,6 +1,6 @@
 module gstack.io/concourse/keyval-resource
 
-go 1.19
+go 1.21
 
 require (
 	github.com/google/uuid v1.4.0
