@@ -50,6 +50,11 @@ meta:
     icon:          ((slack-icon-url))
     channel:       "#oss-pipelines-notifications"
 
+groups:
+  - name: bump
+    jobs:
+      - bump-deps
+
 jobs:
   - name: build
     plan:
@@ -122,7 +127,62 @@ jobs:
         params:
           DOCKERHUB_REPOSITORY: (( concat meta.dockerhub.org "/" meta.name ))
 
+  - name: bump-deps
+    plan:
+      - in_parallel:
+          - { get: git }
+          - { get: gk-automation }
+          - { get: golang-alpine }
+          - { get: image }
+      - task: bump-golang-deps
+        image: golang-alpine
+        config:
+          platform: linux
+          inputs:  [ { name: git, path: repo } ]
+          outputs: [ { name: repo-bumped } ]
+          run:
+            path: sh
+            args:
+            - -ec
+            - |
+              find "repo" -mindepth 1 -maxdepth 1 -print0 \
+                  | xargs -0 -I{} cp -a {} "repo-bumped"
+              cd "repo-bumped" || exit 115
+              set -x
+              go_version=$(
+                  go version \
+                  | awk '{sub(/go/,"",$3); sub(/\.[[:digit:]]+$/,"",$3); print $3}'
+              )
+              sed -i -Ee "s/^go [[:digit:].]+\$/go ${go_version}/" go.mod
+              go get -t -u ./...
+              go mod tidy
+
+      - task: git-commit
+        image: image
+        file: gk-automation/tasks/git/commit.yml
+        input_mapping:
+          repo: repo-bumped
+        params:
+          GIT_COMMIT_MESSAGE: Update Golang dependencies
+          GIT_COMMIT_NAME:    (( grab meta.git.name ))
+          GIT_COMMIT_EMAIL:   (( grab meta.git.email ))
+          GIT_DIFF_OPTS:      --color-words
+
+      - put: git
+        params:
+          repository: repo-committed
+          rebase:     true
+
 resources:
+
+  - name: gk-automation
+    type: git
+    icon: github
+    check_every: 24h
+    source:
+      uri:         git@github.com:gstackio/gk-automation.git
+      branch:      master
+      private_key: (( grab meta.github.private_key ))
 
   - name: git
     check_every: 24h
