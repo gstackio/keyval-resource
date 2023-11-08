@@ -130,6 +130,7 @@ jobs:
   - name: bump-deps
     plan:
       - in_parallel:
+          - { get: weekly, trigger: true }
           - { get: git }
           - { get: gk-automation }
           - { get: golang-alpine }
@@ -174,15 +175,6 @@ jobs:
           rebase:     true
 
 resources:
-
-  - name: gk-automation
-    type: git
-    icon: github
-    check_every: 24h
-    source:
-      uri:         git@github.com:gstackio/gk-automation.git
-      branch:      master
-      private_key: (( grab meta.github.private_key ))
 
   - name: git
     check_every: 24h
@@ -234,3 +226,21 @@ resources:
     source:
       repository: alpine
       tag:        latest
+
+  - name: gk-automation
+    type: git
+    icon: github
+    check_every: 24h
+    source:
+      uri:         git@github.com:gstackio/gk-automation.git
+      branch:      master
+      private_key: (( grab meta.github.private_key ))
+
+  - name: weekly
+    type: time
+    icon: alarm
+    source:
+      location: Europe/Paris
+      start:    "3:00"
+      stop:     "4:30"
+      days:     [ Saturday ]
