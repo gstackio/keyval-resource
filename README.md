@@ -142,32 +142,113 @@ resource_types:
 resources:
   - name: build-info
     type: key-value
+  - name: runner-image
+    type: registry-image
+    source:
+      repository: busybox
+      tag: latest
 
 jobs:
-
-  - name: build
+  - name: step-1-job
     plan:
-      - task: build
-        file: tools/tasks/build/task.yml # <- must declare a 'build-info' output artifact
+      - get: runner-image
+      - task: add-key-value-a-1-task
+        image: runner-image
+        config:
+          platform: linux
+          outputs:
+            - name: build-info
+          run:
+            path: sh
+            args:
+              - -exc
+              - |-
+                echo '1' > build-info/a
       - put: build-info
         params:
           directory: build-info
-
-  - name: test-deploy
+  - name: step-2-job
     plan:
       - in_parallel:
           - get: build-info
-            passed: [ build ]
-      - task: test-deploy
-        file: tools/tasks/task.yml # <- must declare a 'build-info' input artifact
+            trigger: true
+            passed:
+              - step-1-job
+          - get: runner-image
+      - task: read-key-a-task
+        image: runner-image
+        config:
+          platform: linux
+          inputs:
+            - name: build-info
+          run:
+            path: sh
+            args:
+              - -exc
+              - |-
+                cat build-info/a
+      - task: add-key-value-b-2-task
+        image: runner-image
+        config:
+          platform: linux
+          inputs:
+            - name: build-info
+          outputs:
+            - name: build-info
+          run:
+            path: sh
+            args:
+              - -exc
+              - |-
+                echo '2' > build-info/b
+      - put: build-info
+        params:
+          directory: build-info
+          overrides:
+            a: "11"
+            c: "3"
+  - name: step-3-job
+    plan:
+      - in_parallel:
+          - get: build-info
+            trigger: true
+            passed:
+              - step-2-job
+          - get: runner-image
+      - task: read-key-a-b-c-task
+        image: runner-image
+        config:
+          platform: linux
+          inputs:
+            - name: build-info
+          run:
+            path: sh
+            args:
+              - -exc
+              - |-
+                cat build-info/a  # 11
+                cat build-info/b  # 2
+                cat build-info/c  # 3
 ```
 
-The `build` task writes all the key-value pairs it needs to pass along in
-files inside the `build-info` output artifact directory.
+The `add-key-value-a-1-task` creates a file named `a` with content `1` to
+`build-info` output artifact directory. The `build-info` resource will read
+files in the `build-info` directory and store a key-value pair `a: 1`.
 
-The `test-deploy` job then reads the files from the `build-info` resource,
-which produces a `build-info` artifact directory to be used by the
-`test-deploy` task.
+The `read-key-a-task` reads the value from the `a` file in `build-info` input
+artifact directory provided by `build-info` resource.
+
+The `add-key-value-b-2-task` creates a file named `b` with content `2` to
+`build-info` output artifact directory. Because this directory is same as
+`build-info` input artifact directory which already contains `a`. The
+`build-info` resource will read all files in the `build-info` directory and
+store key-value pairs `a: 1` and `b: 2`.
+
+The `put: build-info` in `step-2-job` provides the `overrides` option which
+changes the original key-value pair `a: 1` to `a: 11` and add a new pair `c: 3`.
+
+The `read-key-a-b-c-task` reads values from files in `build-info` input
+artifact directory provided by `build-info` resource.
 
 
 
