@@ -135,12 +135,15 @@ jobs:
           - { get: gk-automation }
           - { get: golang-alpine }
           - { get: image }
+
       - task: bump-golang-deps
         image: golang-alpine
         config:
           platform: linux
           inputs:  [ { name: git, path: repo } ]
-          outputs: [ { name: repo-bumped } ]
+          outputs:
+            - name: repo-bumped
+            - name: golang-info
           run:
             path: sh
             args:
@@ -149,22 +152,68 @@ jobs:
               find "repo" -mindepth 1 -maxdepth 1 -print0 \
                   | xargs -0 -I{} cp -a {} "repo-bumped"
               cd "repo-bumped" || exit 115
-              set -x
-              go_version=$(
-                  go version \
-                  | awk '{sub(/go/,"",$3); sub(/\.[[:digit:]]+$/,"",$3); print $3}'
+
+              awk '/^go /{print $2}' go.mod > golang-info/previous-version
+              (
+                  set -x
+                  go_version=$(
+                      go version \
+                      | awk '{sub(/go/,"",$3); sub(/\.[[:digit:]]+$/,"",$3); print $3}'
+                  )
+                  sed -i -Ee "s/^go [[:digit:].]+\$/go ${go_version}/" go.mod
+                  go get -t -u ./...
+                  go mod tidy
               )
-              sed -i -Ee "s/^go [[:digit:].]+\$/go ${go_version}/" go.mod
-              go get -t -u ./...
-              go mod tidy
+              echo "${go_version}" > golang-info/version
+
+      - task: build-docker-image
+        image: docker-image-build-task
+        privileged: true
+        config:
+          platform: linux
+          inputs:  [ { name: git, path: "." } ]
+          outputs: [ name: built-image ]
+          caches:  [ path: cache ]
+          run:     { path: build }
+
+      - task: generate-messages
+        image: image
+        config:
+          platform: linux
+          inputs:  [ name: golang-info ]
+          outputs: [ name: messages ]
+          run:
+            path: bash
+            args:
+            - -c
+            - |
+              set -ueo pipefail
+              go_prev_ver=$(< golang-info/previous-version)
+              go_curr_ver=$(< golang-info/version)
+
+              version_details="${go_curr_ver}"
+              if [[ ${go_curr_ver} != ${go_prev_ver} ]]; then
+                  version_details="from ${go_prev_ver} to ${go_curr_ver} and its"
+              fi
+              echo "Update Golang ${version_details} dependencies" \
+                  > messages/commit-message
+
+              echo "${PIPELINE_NAME}: successfully bumped Golang ${version_details} dependencies," \
+                "with passing tests! :tada:" \
+                "<${PIPELINE_URL}|Ship it when ready!> ${SUCCESS_MOJI}" \
+                > messages/notif-body
+          params:
+            SUCCESS_MOJI:  (( grab meta.slack.success_moji ))
+            PIPELINE_URL:  (( grab meta.slack.pipeline_url ))
+            PIPELINE_NAME: (( grab meta.pipeline ))
 
       - task: git-commit
         image: image
         file: gk-automation/tasks/git/commit.yml
         input_mapping:
-          repo: repo-bumped
+          repo:        repo-bumped
+          commit-info: messages
         params:
-          GIT_COMMIT_MESSAGE: Update Golang dependencies
           GIT_COMMIT_NAME:    (( grab meta.git.name ))
           GIT_COMMIT_EMAIL:   (( grab meta.git.email ))
           GIT_DIFF_OPTS:      --color-words
@@ -173,6 +222,21 @@ jobs:
         params:
           repository: repo-committed
           rebase:     true
+
+    on_failure:
+      put: notify
+      params:
+        channel:  (( grab meta.slack.channel ))
+        username: (( grab meta.slack.username ))
+        icon_url: (( grab meta.slack.icon ))
+        text:     (( grab meta.slack.fail_text ))
+    on_success:
+      put: notify
+      params:
+        channel:  (( grab meta.slack.channel ))
+        username: (( grab meta.slack.username ))
+        icon_url: (( grab meta.slack.icon ))
+        text_file: messages/notif-body
 
 resources:
 
