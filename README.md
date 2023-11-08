@@ -132,6 +132,12 @@ add it to the `overrides` parameter of some `put` step.
 
 ## Examples
 
+### Summarized example
+
+This example make intentional ellipsis in order to focus on the main ideas
+behind the “keyval” resource. Seasoned Concourse practitioners can find an
+illustration here in one catch.
+
 ```yaml
 resource_types:
   - name: key-value
@@ -142,113 +148,155 @@ resource_types:
 resources:
   - name: build-info
     type: key-value
+
+jobs:
+
+  - name: build
+    plan:
+      - task: build
+        file: tools/tasks/build/task.yml # <- must declare a 'build-info' output artifact
+      - put: build-info
+        params:
+          directory: build-info
+
+  - name: test-deploy
+    plan:
+      - in_parallel:
+          - get: build-info
+            passed: [ build ]
+      - task: test-deploy
+        file: tools/tasks/task.yml # <- must declare a 'build-info' input artifact
+```
+
+The `build` task writes all the key-value pairs it needs to pass along in
+files inside the `build-info` output artifact directory.
+
+The `test-deploy` job then reads the files from the `build-info` resource,
+which produces a `build-info` artifact directory to be used by the
+`test-deploy` task.
+
+
+### Detailed example
+
+This fully-working and detailed example goes deeper in showcasing what the
+resource can actually do and how. Concourse beginners are recommended to read
+this as it details very clearly the relation between resource, artifact
+directories, and tasks.
+
+```yaml
+resource_types:
+  - name: key-value
+    type: registry-image
+    source: { repository: gstack/keyval-resource }
+
+resources:
+  - name: some-keyval-resource
+    type: key-value
   - name: runner-image
     type: registry-image
-    source:
-      repository: busybox
-      tag: latest
+    source: { repository: busybox }
 
 jobs:
   - name: step-1-job
     plan:
       - get: runner-image
-      - task: add-key-value-a-1-task
+      - task: write-keyval-aaa-1-task
         image: runner-image
         config:
           platform: linux
-          outputs:
-            - name: build-info
+          outputs: [ { name: created-keyvals-artifact } ]
           run:
             path: sh
             args:
               - -exc
-              - |-
-                echo '1' > build-info/a
-      - put: build-info
+              - |
+                echo "1" > created-keyvals-artifact/aaa
+      - put: some-keyval-resource
         params:
-          directory: build-info
+          directory: created-keyvals-artifact
   - name: step-2-job
     plan:
       - in_parallel:
-          - get: build-info
+          - get: keyvals-artifact          # here artifact directory is
+            resource: some-keyval-resource # different from resource name
             trigger: true
-            passed:
-              - step-1-job
+            passed: [ step-1-job ]
           - get: runner-image
-      - task: read-key-a-task
+      - task: read-aaa-keyval-task
         image: runner-image
         config:
           platform: linux
-          inputs:
-            - name: build-info
+          inputs: [ { name: keyvals-artifact } ]
           run:
             path: sh
             args:
               - -exc
-              - |-
-                cat build-info/a
-      - task: add-key-value-b-2-task
+              - |
+                cat keyvals-artifact/aaa  # -> 1
+      - task: write-bbb-keyval-task
         image: runner-image
         config:
           platform: linux
-          inputs:
-            - name: build-info
-          outputs:
-            - name: build-info
+          inputs:  [ { name: keyvals-artifact } ]
+          outputs: [ { name: keyvals-artifact } ]
           run:
             path: sh
             args:
               - -exc
-              - |-
-                echo '2' > build-info/b
-      - put: build-info
+              - |
+                echo "2" > build-info/bbb
+      - put: some-keyval-resource
         params:
-          directory: build-info
+          directory: keyvals-artifact
           overrides:
-            a: "11"
-            c: "3"
+            aaa: "11"
+            ccc: "3"
   - name: step-3-job
     plan:
       - in_parallel:
-          - get: build-info
+          - get: some-keyval-resource # artifact dir will have same name
             trigger: true
-            passed:
-              - step-2-job
+            passed: [ step-2-job ]
           - get: runner-image
-      - task: read-key-a-b-c-task
+      - task: read-aaa-bbb-ccc-keyvals-task
         image: runner-image
         config:
           platform: linux
-          inputs:
-            - name: build-info
+          inputs: [ { name: some-keyval-resource } ]
           run:
             path: sh
             args:
               - -exc
-              - |-
-                cat build-info/a  # 11
-                cat build-info/b  # 2
-                cat build-info/c  # 3
+              - |
+                cat build-info/aaa  # -> 11
+                cat build-info/bbb  # -> 2
+                cat build-info/ccc  # -> 3
 ```
 
-The `add-key-value-a-1-task` creates a file named `a` with content `1` to
-`build-info` output artifact directory. The `build-info` resource will read
-files in the `build-info` directory and store a key-value pair `a: 1`.
+The `write-keyval-aaa-1-task` creates a file named `aaa` with content `1` to
+the `created-keyvals-artifact` output artifact directory. The
+`some-keyval-resource` resource will read files in the
+`created-keyvals-artifact` directory and store a key-value pair `
+{"aaa": "1"}`.
 
-The `read-key-a-task` reads the value from the `a` file in `build-info` input
-artifact directory provided by `build-info` resource.
+The `read-aaa-keyval-task` reads the value from the `aaa` file in
+`keyvals-artifact` input artifact directory provided from the
+`some-keyval-resource` resource. This outputs `1`.
 
-The `add-key-value-b-2-task` creates a file named `b` with content `2` to
-`build-info` output artifact directory. Because this directory is same as
-`build-info` input artifact directory which already contains `a`. The
-`build-info` resource will read all files in the `build-info` directory and
-store key-value pairs `a: 1` and `b: 2`.
+The `write-bbb-keyval-task` creates a file named `bbb` with content `2` to
+`keyvals-artifact` output artifact directory. Because this directory is same
+as `keyvals-artifact` input artifact directory which already contains `aaa`.
+The `some-keyval-resource` resource will read all files in the
+`keyvals-artifact` directory and store key-value pairs `{"aaa": "1"}` and `
+{"bbb": "2"}`.
 
-The `put: build-info` in `step-2-job` provides the `overrides` option which
-changes the original key-value pair `a: 1` to `a: 11` and add a new pair `c: 3`.
+The `put: some-keyval-resource` in `step-2-job` provides the `overrides`
+option, which changes the original key-value pair `{"aaa": "1"}` to `
+{"aaa": "11"}` and add a new pair `{"ccc": "3"}`.
 
-The `read-key-a-b-c-task` reads values from files in `build-info` input
-artifact directory provided by `build-info` resource.
+The `read-aaa-bbb-ccc-keyvals-task` reads values from files in the
+`some-keyval-resource` input artifact directory, as provided by the
+`some-keyval-resource` resource.
 
 
 
