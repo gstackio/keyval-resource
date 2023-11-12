@@ -78,8 +78,8 @@ resources:
   Concourse installation, and you don't want a single resource history for all
   the keyval resources defined in your Concourse installation, then set this
   property to a relevant identifier, possibly unique or not. See the
-  [“global resources” section](#global_resources) for a detailed discussion on
-  use-cases and solutions.
+  [“global resources” section](#discussion-on-global-resources) for a detailed
+  discussion on use-cases and solutions.
 
 [gbl_rsc_docs]: https://concourse-ci.org/global-resources.html
 
@@ -309,7 +309,7 @@ The `read-aaa-bbb-ccc-keyvals-task` reads values from files in the
 
 
 
-## Discussion on “global resources” {: #global_resources }
+## Discussion on “global resources”
 
 When the “[global resources][gbl_rsc_docs]” feature is enabled, all resources
 with same `resource.type` and `resource.source` configuration will share the
