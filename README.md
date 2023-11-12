@@ -22,15 +22,18 @@ database. For this to be possible, the trick is that they are serialized as
 keys and values in [`version` JSON objects][version_schema]. As such, they
 are designed to hold _small_, _textual_, _non-secret_ data.
 
-In terms of pipeline design, secrets are supposed to be stored in a vault like
-CredHub instead, and binaries or large text files are supposed to be stored
-on more relevant persistent storage like [Git][git_resource] (possibly with
-Git-LFS) or [S3][s3_resource].
+In case you're dealing with large text, binary data or secrets, we recommend
+you opt for other solutions. Indeed, secrets will be best stored in a vault
+like [CredHub][credhub], large text files in [Git][git_resource], and binary
+data in some [object storage][s3_resource] or [Git][git_resource] with
+Git-LFS, the “[Large File Storage][git_lfs]” addon.
 
 [git_resource]: https://github.com/concourse/git-resource
 [s3_resource]: https://github.com/concourse/s3-resource
 [load_var_step]: https://concourse-ci.org/load-var-step.html
 [version_schema]: https://concourse-ci.org/config-basics.html#schema.version
+[git_lfs]: https://git-lfs.com/
+[credhub]: https://github.com/pivotal/credhub-release
 
 
 
