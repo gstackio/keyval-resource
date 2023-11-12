@@ -73,9 +73,15 @@ resources:
 
 #### Parameters
 
-*None.*
+- `history_identifier`: _Optional._
+  When the [“global resources” feature][gbl_rsc_docs] is enabled on your
+  Concourse installation, and you don't want a single resource history for all
+  the keyval resources defined in your Concourse installation, then set this
+  property to a relevant identifier, possibly unique or not. See the
+  [“global resources” section](#global_resources) for a detailed discussion on
+  use-cases and solutions.
 
-
+[gbl_rsc_docs]: https://concourse-ci.org/global-resources.html
 
 ## Behavior
 
@@ -300,6 +306,72 @@ option, which changes the original key-value pair `{"aaa": "1"}` to `
 The `read-aaa-bbb-ccc-keyvals-task` reads values from files in the
 `some-keyval-resource` input artifact directory, as provided by the
 `some-keyval-resource` resource.
+
+
+
+## Discussion on “global resources” {: #global_resources }
+
+When the “[global resources][gbl_rsc_docs]” feature is enabled, all resources
+with same `resource.type` and `resource.source` configuration will share the
+same version history. If you leave the `resource.source` configuration blank
+in all your keyval resources, then they will _all_ be considered the exact
+same resource by Concourse, sharing the exact same history.
+
+For most keyval resource-related use-case though, this is not releavant and
+thus requires proper scoping.
+
+### Scenario #1: pipeline-private key-values
+
+In many scearios, the key-value resources is used to transmit
+pipeline-specific data between jobs of the same pipeline. In such case,
+sharing resource history is most probably irrelevant. In order to avoid this,
+you can set the `history_identifier` to some value that will be unique in your
+Concourse installation.
+
+For best portability of your pipeline across different Concourse
+installations, we recommend that you use a UUID that can be generated with the
+`uuidgen` command-line tool like this:
+
+```shell
+$ uuidgen | tr [:upper:] [:lower:]
+fc4cb2ba-d0d4-44e2-8589-8fa89a8271fd
+```
+
+Then use it in the resource configuration, so that the resource history is
+scoped privately:
+
+```yaml
+resources:
+  - name: key-value
+    type: key-value
+    source:
+      history_identifier: fc4cb2ba-d0d4-44e2-8589-8fa89a8271fd
+```
+
+### Scenario #2: shared key-values between pipelines
+
+In some scenarios though, it may be interesting to share the resources history
+between different pipelines. Then you can leverage key-value resources that
+share the same `history_identifier` value.
+
+As a result, as soon as a new version is pushed on the shared key-value
+resources, all other pipelines will see it.
+
+#### Example use-case: triggering other pipelines
+
+This is interesting in case some pipeline has to trigger other pipelines. A
+usual solution is to use a “dummy” `semver` resource, backed by Git or some
+object storage.
+
+Using the keyval resource can bring an elegant alternative. A limitation is
+that this resource basically has no version history. At every point in time,
+only the last vesion exisits for the resource. This is not an issue for this
+use-case, though. Indeed with a “dummy” `semver` resource, experience shows
+that nobody actually pays attention to the version history anyway.
+
+With the keyval resource, the triggering version only need to specify the date
+and relevant data showing the reason why the pipeline has been triggered.
+These will appear and properly stay in job build logs, for later inspection.
 
 
 
