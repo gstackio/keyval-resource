@@ -79,7 +79,7 @@ resources:
 
 ## Behavior
 
-### `check`: Report the latest stored key-value pairs
+### `check` Step (`check` script): Report the latest stored key-value pairs
 
 This is a version-less resource so `check` behavior is no-op.
 
@@ -90,7 +90,7 @@ version history.
 
 *None.*
 
-### `in`: Fetch the latest stored key-value pairs from the Concourse SQL database
+### `get` Step (`in` script): Fetch the latest stored key-value pairs from the Concourse SQL database
 
 Fetches the given key & values from the stored resource version JSON (in the
 Concourse SQL database) and write them in their respective files where the
@@ -111,7 +111,7 @@ some_value
 
 *None.*
 
-### `out`: Store new set of key-value pairs to the Concourse SQL database
+### `put` Step (`out` script): Store new set of key-value pairs to the Concourse SQL database
 
 Converts each file in the artifact directory designated by `directory` to a
 set of key-value pairs, where file names are the keys and file contents are
