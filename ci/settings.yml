@@ -128,6 +128,8 @@ jobs:
           DOCKERHUB_REPOSITORY: (( concat meta.dockerhub.org "/" meta.name ))
 
   - name: bump-deps
+    public: true
+    serial: true
     plan:
       - in_parallel:
           - { get: weekly, trigger: true }
@@ -135,6 +137,7 @@ jobs:
           - { get: gk-automation }
           - { get: golang-alpine }
           - { get: image }
+          - { get: docker-image-build-task }
 
       - task: bump-golang-deps
         image: golang-alpine
@@ -153,7 +156,7 @@ jobs:
                   | xargs -0 -I{} cp -a {} "repo-bumped"
               cd "repo-bumped" || exit 115
 
-              awk '/^go /{print $2}' go.mod > golang-info/previous-version
+              awk '/^go /{print $2}' go.mod > ../golang-info/previous-version
               (
                   set -x
                   go_version=$(
@@ -163,8 +166,9 @@ jobs:
                   sed -i -Ee "s/^go [[:digit:].]+\$/go ${go_version}/" go.mod
                   go get -t -u ./...
                   go mod tidy
+
+                  echo "${go_version}" > ../golang-info/version
               )
-              echo "${go_version}" > golang-info/version
 
       - task: build-docker-image
         image: docker-image-build-task
