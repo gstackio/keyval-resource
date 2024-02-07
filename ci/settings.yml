@@ -61,8 +61,8 @@ jobs:
       - (( inline ))
       - in_parallel:
           - (( append ))
-          - { get: golang-alpine, trigger: true, params: { format: oci } }
-          - { get: alpine-latest, trigger: true, params: { format: oci } }
+          - { get: golang-alpine, passed: [ bump-deps ], trigger: true, params: { format: oci } }
+          - { get: alpine-latest, passed: [ bump-deps ], trigger: true, params: { format: oci } }
 
       - # task: build-docker-image
         config:
@@ -79,8 +79,8 @@ jobs:
       - (( inline ))
       - in_parallel:
           - (( append ))
-          - { get: golang-alpine, trigger: true, params: { format: oci } }
-          - { get: alpine-latest, trigger: true, params: { format: oci } }
+          - { get: golang-alpine, passed: [ bump-deps ], trigger: true, params: { format: oci } }
+          - { get: alpine-latest, passed: [ bump-deps ], trigger: true, params: { format: oci } }
 
       - {} # put: git-pull-requests
 
@@ -136,6 +136,8 @@ jobs:
           - { get: git }
           - { get: gk-automation }
           - { get: golang-alpine }
+          - { get: golang-alpine, params: { format: oci } }
+          - { get: alpine-latest, params: { format: oci } }
           - { get: image }
           - { get: docker-image-build-task }
 
@@ -175,10 +177,16 @@ jobs:
         privileged: true
         config:
           platform: linux
-          inputs:  [ { name: git, path: "." } ]
+          inputs:
+            - { name: git, path: "." }
+            - { name: golang-alpine }
+            - { name: alpine-latest }
           outputs: [ name: built-image ]
           caches:  [ path: cache ]
           run:     { path: build }
+          params:
+            IMAGE_ARG_golang: golang-alpine/image.tar
+            IMAGE_ARG_alpine: alpine-latest/image.tar
 
       - task: generate-messages
         image: image
