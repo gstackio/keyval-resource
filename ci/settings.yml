@@ -135,7 +135,7 @@ jobs:
           - { get: weekly, trigger: true }
           - { get: git }
           - { get: gk-automation }
-          - { get: golang-runner, resource: golang-latest } # format: rootfs
+          - { get: golang-runner, resource: golang-alpine } # format: rootfs
           - { get: golang-alpine, params: { format: oci } }
           - { get: alpine-latest, params: { format: oci } }
           - { get: image }
