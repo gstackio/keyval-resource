@@ -1,0 +1,5 @@
+---
+MD012: false # Multiple consecutive blank lines
+# MD022: false # Headings should be surrounded by blank lines
+MD024: false # Multiple headings with the same content
+# MD041: false # First line in a file should be a top-level heading
