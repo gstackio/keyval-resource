@@ -1,0 +1,12 @@
+/.git/
+/.github/
+/.markdownlint.yml
+/Dockerfile
+/LICENSE.txt
+/*.md
+
+# Resources to ignore with the 'build-docker-image' tasks
+/golang-latest/
+/alpine-latest/
+/image/
+/cache/
