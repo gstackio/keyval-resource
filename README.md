@@ -430,7 +430,7 @@ running Ginkgo unit tests.
 
 
 
-## Author and License
+## Author and license
 
 Copyright © 2021-present, Benjamin Gandon, Gstack
 
