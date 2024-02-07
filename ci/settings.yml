@@ -298,7 +298,7 @@ resources:
     check_every: 24h
     source:
       repository: golang
-      tag:        alpine
+      variant:    alpine
 
   - name: alpine-latest
     type: registry-image
