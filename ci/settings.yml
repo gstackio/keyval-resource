@@ -146,6 +146,7 @@ jobs:
         config:
           platform: linux
           inputs:  [ { name: git, path: repo } ]
+          caches:  [ path: /go ]
           outputs:
             - name: repo-bumped
             - name: golang-info
