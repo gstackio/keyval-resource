@@ -40,7 +40,11 @@ Git-LFS, the “[Large File Storage][git_lfs]” addon.
 ## Credits
 
 This resource is a fork of the [`keyval` resource][moredhel_gh] by
-[@moredhel](https://github.com/moredhel).
+[@moredhel](https://github.com/moredhel), thanks for the work done!
+
+## Comparison to similar resources
+
+### SWCE/keyval-resource (Java `.properties`-based)
 
 Compared to the [original `keyval` resource][swce_gh] from SWCE by
 [@regevbr](https://github.com/regevbr) and [@ezraroi](https://github.com/ezraroi),
@@ -52,8 +56,21 @@ from Kubernetes.
 Writing/reading files is always easier in Bash scripts than parsing some Java
 Properties file, because much less boilerplate code is required.
 
+### moredhel/keyval-resource (unfinished)
+
+Inital [v1.1.0][v1_1_0] release has fixed many defects, that made it not
+usable (non-working `put` steps).
+
+### cludden/concourse-keyval-resource
+
+That one implements [Bloblang][about_bloblang]-generated contents, and only
+allow creating new key-values through the `params` of `put` steps, not through
+writing plain files in some artifact directory of `task`steps like we do here.
+
 [moredhel_gh]: https://github.com/moredhel/keyval-resource
 [swce_gh]: https://github.com/SWCE/keyval-resource
+[v1_1_0]: https://github.com/gstackio/keyval-resource/releases/tag/v1.1.0
+[about_bloblang]: https://www.benthos.dev/docs/guides/bloblang/about
 
 
 
