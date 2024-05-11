@@ -1,6 +1,8 @@
 module gstack.io/concourse/keyval-resource
 
-go 1.22
+go 1.22.0
+
+toolchain go1.22.3
 
 require (
 	github.com/google/uuid v1.6.0

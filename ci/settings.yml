@@ -121,7 +121,7 @@ jobs:
                     type: registry-image
                     source:
                       repository: ${DOCKERHUB_REPOSITORY}
-                      tag: "$(< version/number)"
+                      tag:        "$(< version/number)"
                 \`\`\`
                 EOF
         params:
@@ -159,18 +159,22 @@ jobs:
                   | xargs -0 -I{} cp -a {} "repo-bumped"
               cd "repo-bumped" || exit 115
 
-              awk '/^go /{print $2}' go.mod > ../golang-info/previous-version
+              awk '/^toolchain /{sub(/go/,"",$2); print $2}' go.mod \
+                  > ../golang-info/previous-version
+
               (
                   set -x
-                  go_version=$(
-                      go version \
-                      | awk '{sub(/go/,"",$3); sub(/\.[[:digit:]]+$/,"",$3); print $3}'
-                  )
-                  sed -i -Ee "s/^go [[:digit:].]+\$/go ${go_version}/" go.mod
+                  toolchain_version=$(go version | awk '{print $3}')
+                  go_version=${toolchain_version#"go"}
+                  inferred_go_min_version="${go_version%.*}.0"
+                  sed -i -Ee "s/^go [[:digit:].]+\$/go ${inferred_go_min_version}/" go.mod
+                  sed -i -Ee "s/^toolchain go[[:digit:].]+\$/toolchain ${toolchain_version}/" go.mod
                   go get -t -u ./...
                   go mod tidy
 
-                  echo "${go_version}" > ../golang-info/version
+                  echo "${toolchain_version}"       > ../golang-info/toolchain-version
+                  echo "${go_version}"              > ../golang-info/version
+                  echo "${inferred_go_min_version}" > ../golang-info/min-version
               )
 
       - task: build-docker-image
@@ -186,6 +190,7 @@ jobs:
           caches:  [ path: cache ]
           run:     { path: build }
           params:
+            DEBUG: true
             IMAGE_ARG_golang: golang-alpine/image.tar
             IMAGE_ARG_alpine: alpine-latest/image.tar
         output_mapping:
