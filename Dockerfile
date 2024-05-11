@@ -1,4 +1,9 @@
-FROM golang:alpine AS ginkgo
+ARG golang
+ARG alpine
+
+
+
+FROM ${golang} AS ginkgo
 WORKDIR /keyval-resource
 COPY go.mod go.sum ./
 RUN go install -mod="mod" "github.com/onsi/ginkgo/v2/ginkgo@latest"
@@ -21,6 +26,6 @@ RUN ACK_GINKGO_RC="true" ginkgo -r --show-node-events .
 
 
 
-FROM alpine:latest AS resource
+FROM ${alpine} AS resource
 RUN apk add --no-cache bash tzdata
 COPY --from=builder /assets /opt/resource
